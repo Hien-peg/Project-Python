@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="40" height="23" tilewidth="32" tileheight="32" infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" source="world.tsx"/>
+ <tileset firstgid="29585" source="house_large.tsx"/>
+ <layer id="1" name="Tile Layer 1" width="40" height="23">
+  <data encoding="base64" compression="zlib">
+   eJztzsVWUGEAhdFrFyYidiCYGNhNqICIGPgKPMH1WdSxPTJBB9i5bMVEMREDAzsR3c5Yuhz6Lwd3sEdncL6Ksiiq+M3aOIrWsT7+c2utJu/fa/23Qc9GNrGZLWxl2186Q/Vt97+DnexiN3uopIq97IvDt/1S7Xc/BzjIIQ5zhKMc4zgnOMmpOGzfaX9nOMs5znOBi1ziMjVc4SrXuB6H67vh6ya13OI2ddzhLve4zwMeUs+jgH0Nvh7zhKc8o5HnvOAlr2jiNW94G7Dvna/3fOAjn/jMF77yjWa+08IPojXh+tr4aks72tOBjnSiM13oSjdS6E6PgH09ffWiN31IpS9p9COd/gxgIIMYHLBviK+hDGM4I8hgJJlkMYrRjGEs4wL2jfeVzQQmMonJ5DCFqUxjOjOYyayAfbN9zWEu85jPAnLJI58CFrKIxRQG7CvyVcwSSlhKKcsoYzkrWMkqylkdsC+RSCQS/6ef/qm6dQ==
+  </data>
+ </layer>
+</map>
