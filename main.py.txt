@@ -2,6 +2,5 @@ main.py
 #cái hospital bị nhỏ di chuyển xuống với qua phải không được
 #object (Không hiển thị object)
 #Entities (đi xuyên vật thể)
-#water( đi xuyên vật thể)
-#Lỗi đường dẫn không tìm được file coast.png
+#water( đi xuyên vật thể, mất một đoạn nước góc phải do lỗi map vẽ thiếu)
 

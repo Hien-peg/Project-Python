@@ -1,14 +1,10 @@
-
+import pygame
 
 from  setting import *
-from pytmx.util_pygame import load_pygame
-from os.path import join
-from sprites import Sprite, AnimatedSprite
+from sprites import Sprite, AnimatedSprite, MonsterPatchSprite,BorderSprite, CollidableSprite
 from groups import AllSprites
-from entities import Player
+from entities import Player , Character
 from support import *
-import os
-
 
 class Game:
     def __init__(self):
@@ -19,11 +15,12 @@ class Game:
 
         # Groups
         self.all_sprites = AllSprites()
+        self.collision_sprites = pygame.sprite.Group()
 
         # Import assets and setup
         self.import_assets()
         #cái hospital bị nhỏ di chuyển xuống với qua phải không được
-        # self.setup(self.tmx_maps['hospital'], 'world') nhớ tắt code dưới mới chạy được
+        self.setup(self.tmx_maps['hospital'], 'world')
         self.setup(self.tmx_maps['world'], 'house')
 
     def import_assets(self):
@@ -32,7 +29,8 @@ class Game:
                          }
         self.overworld_frames ={
             'water': import_folder('..','graphics','tilesets','water'),
-            'cost': coast_importer(24,12,'..', 'tilesets', 'coast')
+            'coast': coast_importer(24,12,'..','graphics' ,'tilesets', 'coast'),
+            'characters': all_character_import('..','graphics','characters')
         }
 
 
@@ -41,28 +39,53 @@ class Game:
         # Terrain
         for layer in ['Terrain', 'Terrain Top']:
             for x, y, surf in tmx_map.get_layer_by_name('Terrain').tiles():
-                Sprite((x * TILE_SIZE, y * TILE_SIZE), surf, self.all_sprites)
+                Sprite((x * TILE_SIZE, y * TILE_SIZE), surf, self.all_sprites, WORLD_LAYERS['bg'] )
 
-        #object (Không hiển thị object)
-        for obj in tmx_map.get_layer_by_name('Objects'):
-            Sprite((obj.x, obj.y), obj.image, self.all_sprites)
-
-        #Entities (đi xuyên vật thể)
-        for obj in tmx_map.get_layer_by_name('Entities'):
-            if obj.name == 'Player' and obj.properties['pos'] == player_start_pos:
-                self.player = Player((obj.x, obj.y), self.all_sprites)
-
-        #Water
+        # Water
         for obj in tmx_map.get_layer_by_name('Water'):
             for x in range(int(obj.x), int(obj.x + obj.width), TILE_SIZE):
                 for y in range(int(obj.y), int(obj.y + obj.height), TILE_SIZE):
-                    AnimatedSprite((x,y), self.overworld_frames['water'], self.all_sprites)
+                    AnimatedSprite((x, y), self.overworld_frames['water'], self.all_sprites, WORLD_LAYERS['water'])
 
-        #coast
+        # coast
         for obj in tmx_map.get_layer_by_name('Coast'):
             terrain = obj.properties['terrain']
-            side= obj.properties['side']
-            AnimatedSprite((obj.x,obj.y), self.overworld_frames['coast'][terrain][side], self.all_sprites)
+            side = obj.properties['side']
+            AnimatedSprite((obj.x, obj.y), self.overworld_frames['coast'][terrain][side], self.all_sprites, WORLD_LAYERS['bg'])
+
+        #object (Không hiển thị object)
+        for obj in tmx_map.get_layer_by_name('Objects'):
+            if obj.name == 'top':
+                Sprite((obj.x, obj.y), obj.image, self.all_sprites,WORLD_LAYERS['top'])
+            else:
+                CollidableSprite((obj.x, obj.y), obj.image, (self.all_sprites, self.collision_sprites))
+
+        #collision
+        for obj in tmx_map.get_layer_by_name('Collisions'):
+            BorderSprite((obj.x,obj.y), pygame.Surface((obj.width,obj.height)),self.collision_sprites)
+
+
+        #grass
+        for obj in tmx_map.get_layer_by_name('Monsters'):
+            MonsterPatchSprite((obj.x, obj.y), obj.image, self.all_sprites, obj.properties['biome'])
+
+        #Entities (đi xuyên vật thể)
+        for obj in tmx_map.get_layer_by_name('Entities'):
+            if obj.name == 'Player':
+                if obj.properties['pos'] == player_start_pos:
+                    self.player = Player((obj.x, obj.y),
+                    frames= self.overworld_frames['characters']['player'],
+                    groups=self.all_sprites,
+                    facing_direction= obj.properties['direction'],
+                    collision_sprites= self.collision_sprites)
+            else:
+              Character(
+                pos = (obj.x, obj.y),
+                frames =self.overworld_frames['characters'][obj.properties['graphic']],
+                groups= (self.all_sprites,self.collision_sprites),
+                facing_direction= obj.properties['direction'])
+
+
 
     def run(self):
         while True:

@@ -4,7 +4,6 @@ from os import walk
 from pytmx.util_pygame import load_pygame
 import os
 
-
 # import functions
 def import_image(*path, alpha = True, format = 'png'):
 	full_path = join(*path) + f'.{format}'
