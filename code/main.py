@@ -1,12 +1,15 @@
 import pygame
 
 from  setting import *
-from sprites import Sprite, AnimatedSprite, MonsterPatchSprite,BorderSprite, CollidableSprite
+from sprites import Sprite, AnimatedSprite, MonsterPatchSprite,BorderSprite, CollidableSprite, TransitionSprite
 from groups import AllSprites
+from game_data import *
 from entities import Player , Character
 from support import *
+from dialog import DialogTree
 
 class Game:
+    #general
     def __init__(self):
         pygame.init()
         self.display_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -16,26 +19,85 @@ class Game:
         # Groups
         self.all_sprites = AllSprites()
         self.collision_sprites = pygame.sprite.Group()
+        self.character_sprites = pygame.sprite.Group()
+        self.transition_sprites = pygame.sprite.Group()
+
+        #transition unit
+        self.transition_targer =None
+        self.tint_surf = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+        self.tint_mode= 'untint'
+        self.tint_progress= 0
+        self.tint_direction =-1
+        self.tint_speed = 600
 
         # Import assets and setup
         self.import_assets()
-        #cái hospital bị nhỏ di chuyển xuống với qua phải không được
-        self.setup(self.tmx_maps['hospital'], 'world')
         self.setup(self.tmx_maps['world'], 'house')
+        self.dialog_tree = None
+
 
     def import_assets(self):
-        self.tmx_maps = {'world': load_pygame(join('..', 'data', 'maps', 'world.tmx')),
-                         'hospital': load_pygame(join('..', 'data', 'maps', 'hospital.tmx')),
-                         }
+        self.tmx_maps = tmx_importer('..','data','maps')
         self.overworld_frames ={
             'water': import_folder('..','graphics','tilesets','water'),
             'coast': coast_importer(24,12,'..','graphics' ,'tilesets', 'coast'),
             'characters': all_character_import('..','graphics','characters')
         }
 
+        self.fonts = {
+            'dialog': pygame.font.Font(join('..', 'graphics', 'fonts', 'PixeloidSans.ttf'), 30),
+			'regular': pygame.font.Font(join('..', 'graphics', 'fonts', 'PixeloidSans.ttf'), 18),
+			'small': pygame.font.Font(join('..', 'graphics', 'fonts', 'PixeloidSans.ttf'), 14),
+			'bold': pygame.font.Font(join('..', 'graphics', 'fonts', 'dogicapixelbold.otf'), 20),
+        }
+
+    #dialog system
+    def input(self):
+        if not self.dialog_tree:
+            keys = pygame.key.get_just_pressed()
+            if keys[pygame.K_SPACE]:
+                for character in self.character_sprites:
+                     if check_connections(100,self.player, character):
+                         self.player.block()
+                         character.change_facing_direction(self.player.rect.center)
+                         self.create_dialog(character)
+                         character.can_rotate = False
+
+    def create_dialog(self, character):
+        if not self.dialog_tree:
+            self.dialog_tree= DialogTree(character,self.player,self.all_sprites, self.fonts['dialog'],self.end_dialog)
+
+    def end_dialog(self,character):
+        self.dialog_tree =None
+        self.player.unblock()
+
+    #transtion system
+    def transition_check(self):
+        sprites = [sprite for sprite in self.transition_sprites if sprite.rect.colliderect(self.player.hitbox)]
+        if sprites:
+            self.player.block()
+            self.transition_targer =sprites[0].target
+            self.tint_mode ='tint'
+
+    def tint_screen(self, dt):
+        if self.tint_mode == 'untint':
+            self.tint_progress -= self.tint_speed * dt
+        if self.tint_mode == 'tint':
+            self.tint_progress += self.tint_speed * dt
+            if self.tint_progress >=255:
+                self.setup(self.tmx_maps[self.transition_targer[0]],self.transition_targer[1])
+                self.tint_mode = 'untint'
+                self.transition_targer = None
+
+        self.tint_progress =max(0,min(self.tint_progress,255))
+        self.tint_surf.set_alpha(self.tint_progress)
+        self.display_surface.blit(self.tint_surf, (0, 0))
 
 
     def setup(self, tmx_map, player_start_pos):
+        #clear map
+        for group in (self.all_sprites, self.collision_sprites, self.transition_sprites, self.character_sprites ):
+            group.empty()
         # Terrain
         for layer in ['Terrain', 'Terrain Top']:
             for x, y, surf in tmx_map.get_layer_by_name('Terrain').tiles():
@@ -60,6 +122,12 @@ class Game:
             else:
                 CollidableSprite((obj.x, obj.y), obj.image, (self.all_sprites, self.collision_sprites))
 
+        #transition object
+        for obj in tmx_map.get_layer_by_name('Transition'):
+            TransitionSprite((obj.x, obj.y), (obj.width, obj.height), (obj.properties['target'], obj.properties['pos']),self.transition_sprites)
+
+
+
         #collision
         for obj in tmx_map.get_layer_by_name('Collisions'):
             BorderSprite((obj.x,obj.y), pygame.Surface((obj.width,obj.height)),self.collision_sprites)
@@ -82,25 +150,37 @@ class Game:
               Character(
                 pos = (obj.x, obj.y),
                 frames =self.overworld_frames['characters'][obj.properties['graphic']],
-                groups= (self.all_sprites,self.collision_sprites),
-                facing_direction= obj.properties['direction'])
+                groups= (self.all_sprites,self.collision_sprites,self.character_sprites),
+                facing_direction= obj.properties['direction'],
+                character_data= TRAINER_DATA[obj.properties['character_id']],
+                player= self.player,
+                create_dialog= self.create_dialog,
+                collision_sprites = self.collision_sprites,
+                radius = obj.properties['radius'])
 
 
 
     def run(self):
         while True:
             dt = self.clock.tick() / 1000
+            self.display_surface.fill('black')
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
 
             # Game logic
+            self.input()
+            self.transition_check()
             self.all_sprites.update(dt)
-            self.display_surface.fill('black')
-            self.all_sprites.draw(self.player.rect.center)
-            pygame.display.update()
 
+            #drawing
+            self.all_sprites.draw(self.player)
+
+            #overlays
+            if self.dialog_tree: self.dialog_tree.update()
+            self.tint_screen(dt)
+            pygame.display.update()
 
 if __name__ == '__main__':
     game = Game()
